@@ -1,0 +1,195 @@
+name: Deploy
+on:
+  workflow_dispatch:
+    inputs:
+      deployment_target:
+        description: 'Deployment Target'
+        required: true
+        default: 'vm'
+        type: choice
+        options: [vm, cloudrun]
+      domain:
+        description: 'Deployment Domain'
+        required: true
+        default: 'localhost'
+      acme_email:
+        description: 'Traefik ACME Email'
+        required: true
+        default: 'admin@localhost.com'
+      environment:
+        description: 'Target Environment'
+        required: true
+        default: 'production'
+        type: choice
+        options: [production, staging, development]
+      profile:
+        description: 'Service Profile (VM only)'
+        required: true
+        default: 'foundation'
+        type: choice
+        options: [all, foundation, database, cache, search, auth, messaging, graph, vector, proxy]
+      gcp_project:
+        description: 'GCP Project ID (Cloud Run only)'
+        required: false
+        default: ''
+      gcp_region:
+        description: 'GCP Region (Cloud Run only)'
+        required: false
+        default: 'us-central1'
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  # ===========================================================================
+  # VM DEPLOYMENT
+  # ===========================================================================
+  deploy-vm:
+    name: Deploy to VM (${{ github.event.inputs.environment }})
+    runs-on: ubuntu-latest
+    if: github.event.inputs.deployment_target == 'vm'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup environment file
+        env:
+          INPUT_DOMAIN:                   ${{ github.event.inputs.domain }}
+          INPUT_ACME_EMAIL:               ${{ github.event.inputs.acme_email }}
+          SECRET_POSTGRES_PASSWORD:       ${{ secrets.POSTGRES_PASSWORD }}
+          SECRET_REDIS_PASSWORD:          ${{ secrets.REDIS_PASSWORD }}
+          SECRET_NEO4J_AUTH:              ${{ secrets.NEO4J_AUTH }}
+          SECRET_KEYCLOAK_ADMIN_PASSWORD: ${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}
+          SECRET_KEYCLOAK_DB_PASSWORD:    ${{ secrets.KEYCLOAK_DB_PASSWORD }}
+          SECRET_ELASTICSEARCH_PASSWORD:  ${{ secrets.ELASTICSEARCH_PASSWORD }}
+          SECRET_QDRANT_API_KEY:          ${{ secrets.QDRANT_API_KEY }}
+          SECRET_NPM_ADMIN_PASSWORD:      ${{ secrets.NPM_ADMIN_PASSWORD }}
+        run: bash .github/scripts/setup-env.sh
+      
+      - name: Validate compose configuration
+        run: bash .github/scripts/validate-compose.sh
+      
+      - name: Render templates
+        run: bash .github/scripts/render-templates.sh
+      
+      - name: Copy files to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host:     ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key:      ${{ secrets.SERVER_SSH_KEY }}
+          source:   '.'
+          target:   ~/infrastructure
+      
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host:     ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key:      ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            cd ~/infrastructure
+            chmod +x local-start.sh
+            bash local-start.sh ${{ github.event.inputs.profile }}
+
+  # ===========================================================================
+  # CLOUD RUN DEPLOYMENT
+  # ===========================================================================
+  deploy-cloudrun:
+    name: Deploy to Cloud Run (${{ github.event.inputs.environment }})
+    runs-on: ubuntu-latest
+    if: github.event.inputs.deployment_target == 'cloudrun'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Google Auth
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ github.event.inputs.gcp_project || secrets.GCP_PROJECT_ID }}
+      
+      - name: Setup environment file
+        env:
+          INPUT_DOMAIN:                   ${{ github.event.inputs.domain }}
+          INPUT_ACME_EMAIL:               ${{ github.event.inputs.acme_email }}
+          SECRET_POSTGRES_PASSWORD:       ${{ secrets.POSTGRES_PASSWORD }}
+          SECRET_REDIS_PASSWORD:          ${{ secrets.REDIS_PASSWORD }}
+          SECRET_NEO4J_AUTH:              ${{ secrets.NEO4J_AUTH }}
+          SECRET_KEYCLOAK_ADMIN_PASSWORD: ${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}
+          SECRET_KEYCLOAK_DB_PASSWORD:    ${{ secrets.KEYCLOAK_DB_PASSWORD }}
+          SECRET_ELASTICSEARCH_PASSWORD:  ${{ secrets.ELASTICSEARCH_PASSWORD }}
+          SECRET_QDRANT_API_KEY:          ${{ secrets.QDRANT_API_KEY }}
+          SECRET_NPM_ADMIN_PASSWORD:      ${{ secrets.NPM_ADMIN_PASSWORD }}
+        run: bash .github/scripts/setup-env.sh
+      
+      - name: Build and push images
+        run: |
+          GCP_PROJECT="${{ github.event.inputs.gcp_project || secrets.GCP_PROJECT_ID }}"
+          GCP_REGION="${{ github.event.inputs.gcp_region }}"
+          
+          # Build and push each service image
+          services=("postgres" "redis" "elasticsearch" "qdrant" "nats")
+          for service in "${services[@]}"; do
+            if [[ -f "services/${service}/Dockerfile" ]]; then
+              echo "Building ${service}..."
+              docker build -t "gcr.io/${GCP_PROJECT}/${service}:${{ github.sha }}" "services/${service}/"
+              docker push "gcr.io/${GCP_PROJECT}/${service}:${{ github.sha }}"
+            fi
+          done
+      
+      - name: Deploy to Cloud Run
+        run: |
+          GCP_PROJECT="${{ github.event.inputs.gcp_project || secrets.GCP_PROJECT_ID }}"
+          GCP_REGION="${{ github.event.inputs.gcp_region }}"
+          
+          # Deploy each service
+          bash .github/scripts/deploy-cloudrun.sh \
+            "${GCP_PROJECT}" \
+            "${GCP_REGION}" \
+            "${{ github.sha }}" \
+            "${{ github.event.inputs.environment }}"
+
+  # ===========================================================================
+  # UPDATE CHANGELOG
+  # ===========================================================================
+  update-changelog:
+    name: Update CHANGELOG.md
+    runs-on: ubuntu-latest
+    needs: [deploy-vm, deploy-cloudrun]
+    if: always() && (needs.deploy-vm.result == 'success' || needs.deploy-cloudrun.result == 'success')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Generate changelog entry
+        id: changelog
+        env:
+          INPUT_ENVIRONMENT: ${{ github.event.inputs.environment }}
+          INPUT_DOMAIN:      ${{ github.event.inputs.domain }}
+          INPUT_PROFILE:     ${{ github.event.inputs.profile }}
+          INPUT_TARGET:      ${{ github.event.inputs.deployment_target }}
+          GITHUB_ACTOR:      ${{ github.actor }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_ID:     ${{ github.run_id }}
+        run: bash .github/scripts/generate-changelog.sh
+      
+      - name: Write CHANGELOG.md
+        env:
+          ENTRY: ${{ steps.changelog.outputs.entry }}
+        run: bash .github/scripts/write-changelog.sh
+      
+      - name: Commit and push CHANGELOG.md
+        env:
+          INPUT_ENVIRONMENT: ${{ github.event.inputs.environment }}
+        run: bash .github/scripts/commit-changelog.sh

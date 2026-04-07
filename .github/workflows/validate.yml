@@ -1,0 +1,179 @@
+name: Validate
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ===========================================================================
+  # LINTING
+  # ===========================================================================
+  lint-compose:
+    name: Lint Docker Compose
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Validate compose files
+        run: bash .github/scripts/validate-compose.sh
+
+  lint-scripts:
+    name: Lint Scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: ShellCheck
+        run: |
+          sudo apt-get update && sudo apt-get install -y shellcheck
+          shellcheck local-start.sh || true
+      
+      - name: Check script executability
+        run: |
+          chmod +x local-start.sh
+          test -x local-start.sh
+          echo "✓ local-start.sh is executable"
+
+  # ===========================================================================
+  # DOCKER VALIDATION
+  # ===========================================================================
+  docker-validation:
+    name: Docker Compose Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Copy environment
+        run: cp .env.example .env
+      
+      - name: Validate compose syntax
+        run: docker compose config > /dev/null
+      
+      - name: Test local-start.sh (dry run)
+        run: |
+          chmod +x local-start.sh
+          # Just validate the script doesn't have syntax errors
+          bash -n local-start.sh
+          echo "✓ local-start.sh syntax is valid"
+
+  # ===========================================================================
+  # RUNTIME TESTS
+  # ===========================================================================
+  runtime-test-foundation:
+    name: Runtime Test - Foundation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup environment
+        run: |
+          cp .env.example .env
+          sed -i 's/POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=testpass123/' .env
+          sed -i 's/REDIS_PASSWORD=.*/REDIS_PASSWORD=testpass123/' .env
+      
+      - name: Start services
+        run: |
+          chmod +x local-start.sh
+          bash local-start.sh foundation
+      
+      - name: Wait for health checks
+        run: |
+          sleep 30
+          docker ps --format "table {{.Names}}\t{{.Status}}"
+      
+      - name: Test PostgreSQL
+        run: |
+          docker exec postgres pg_isready -U postgres || exit 1
+          echo "✓ PostgreSQL is responding"
+      
+      - name: Test Redis
+        run: |
+          docker exec redis redis-cli -a testpass123 ping | grep PONG || exit 1
+          echo "✓ Redis is responding"
+      
+      - name: Check for errors in logs
+        run: |
+          if docker compose logs --profile foundation 2>&1 | grep -i "error\|fatal" | grep -v "grep"; then
+            echo "✗ Errors found in logs"
+            exit 1
+          else
+            echo "✓ No errors in logs"
+          fi
+      
+      - name: Cleanup
+        if: always()
+        run: docker compose --profile all down -v --remove-orphans
+
+  runtime-test-cache:
+    name: Runtime Test - Cache
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup environment
+        run: |
+          cp .env.example .env
+          sed -i 's/REDIS_PASSWORD=.*/REDIS_PASSWORD=testpass123/' .env
+      
+      - name: Start services
+        run: |
+          chmod +x local-start.sh
+          bash local-start.sh cache
+      
+      - name: Wait for health checks
+        run: |
+          sleep 20
+          docker ps --format "table {{.Names}}\t{{.Status}}"
+      
+      - name: Test Redis
+        run: |
+          docker exec redis redis-cli -a testpass123 ping | grep PONG || exit 1
+          echo "✓ Redis is responding"
+      
+      - name: Check for errors
+        run: |
+          if docker compose logs --profile cache 2>&1 | grep -i "error\|fatal" | grep -v "grep"; then
+            echo "✗ Errors found in logs"
+            exit 1
+          else
+            echo "✓ No errors in logs"
+          fi
+      
+      - name: Cleanup
+        if: always()
+        run: docker compose --profile all down -v --remove-orphans
+
+  # ===========================================================================
+  # SECURITY SCAN
+  # ===========================================================================
+  security-scan:
+    name: Trivy Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-results.sarif
+      
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif
+
+  # ===========================================================================
+  # ENVIRONMENT SYNC CHECK
+  # ===========================================================================
+  check-env-sync:
+    name: Check ENV Sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Check environment variables
+        run: bash .github/scripts/check-env-sync.sh

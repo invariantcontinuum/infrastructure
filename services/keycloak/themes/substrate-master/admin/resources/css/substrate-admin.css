@@ -1,0 +1,186 @@
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@1,9..144,300;1,9..144,400&family=Instrument+Sans:wght@400;500;600&display=swap");
+
+:root {
+  color-scheme: light;
+
+  --sub-bg: #ede8df;
+  --sub-surface: #fefcf9;
+  --sub-surface-muted: #f2ede4;
+  --sub-border: #d4c9bb;
+  --sub-border-strong: #c4b5a5;
+  --sub-text: #1c1813;
+  --sub-text-sub: #7d7168;
+  --sub-accent: #1a4a7a;
+  --sub-accent-hover: #215891;
+
+  --pf-v5-global--Color--100: var(--sub-text);
+  --pf-v5-global--Color--200: var(--sub-text-sub);
+  --pf-v5-global--BackgroundColor--100: var(--sub-bg);
+  --pf-v5-global--BackgroundColor--200: var(--sub-surface);
+  --pf-v5-global--BackgroundColor--light-100: var(--sub-surface);
+  --pf-v5-global--BorderColor--100: var(--sub-border);
+  --pf-v5-global--BorderColor--200: var(--sub-border-strong);
+  --pf-v5-global--primary-color--100: var(--sub-accent);
+  --pf-v5-global--active-color--100: var(--sub-accent);
+  --pf-v5-global--link--Color: var(--sub-accent);
+  --pf-v5-global--link--Color--hover: var(--sub-accent-hover);
+
+  --pf-v5-c-page__header--BackgroundColor: var(--sub-surface);
+  --pf-v5-c-masthead--BackgroundColor: var(--sub-surface);
+  --pf-v5-c-page__sidebar--BackgroundColor: var(--sub-surface-muted);
+  --pf-v5-c-page__sidebar--Color: var(--sub-text);
+  --pf-v5-c-nav__link--Color: var(--sub-text);
+  --pf-v5-c-dropdown__toggle--Color: var(--sub-text);
+  --pf-v5-c-dropdown__toggle-icon--Color: var(--sub-text);
+
+  /* Protect from dark token bleed if the dark class appears. */
+  --pf-v5-global--BackgroundColor--dark-100: var(--sub-surface);
+  --pf-v5-global--BackgroundColor--dark-200: var(--sub-surface-muted);
+}
+
+html,
+body {
+  color-scheme: light;
+  background: var(--sub-bg);
+  font-family: "Instrument Sans", system-ui, sans-serif;
+}
+
+.pf-v5-c-page__header,
+.pf-v5-c-masthead,
+.pf-v5-c-masthead__main,
+.pf-v5-c-masthead__content,
+.pf-v5-c-toolbar,
+.pf-v5-c-toolbar__content,
+.pf-v5-c-toolbar__group,
+.pf-v5-c-toolbar__item,
+.pf-v5-c-page__header-tools,
+.pf-v5-c-page__header-tools-group {
+  background: var(--sub-surface) !important;
+  color: var(--sub-text) !important;
+}
+
+.pf-v5-c-masthead.pf-m-display-inline,
+.pf-v5-c-masthead.pf-m-display-inline .pf-v5-c-masthead__main,
+.pf-v5-c-masthead.pf-m-display-inline .pf-v5-c-masthead__content {
+  background: var(--sub-surface) !important;
+  color: var(--sub-text) !important;
+}
+
+.pf-v5-c-masthead.pf-m-display-inline {
+  border-bottom: 1px solid var(--sub-border) !important;
+  box-sizing: border-box;
+}
+
+.pf-v5-c-page__header {
+  box-sizing: border-box;
+}
+
+.pf-v5-c-page__sidebar,
+.pf-v5-c-nav {
+  background: var(--sub-surface-muted) !important;
+}
+
+.pf-v5-c-nav__link {
+  color: var(--sub-text) !important;
+}
+
+.pf-v5-c-nav__link:hover {
+  background: #efe6da !important;
+  color: var(--sub-text) !important;
+}
+
+.pf-v5-c-nav__item.pf-m-current > .pf-v5-c-nav__link,
+.pf-v5-c-nav__link.pf-m-current {
+  background: var(--sub-accent) !important;
+  color: #ffffff !important;
+}
+
+.pf-v5-c-card,
+.pf-v5-c-page__main-section.pf-m-light {
+  background: rgba(254, 252, 249, 0.9) !important;
+  border-color: var(--sub-border) !important;
+}
+
+.pf-v5-c-form-control,
+.pf-v5-c-select__toggle,
+.pf-v5-c-menu__content,
+.pf-v5-c-text-input-group {
+  border-color: var(--sub-border-strong) !important;
+}
+
+.pf-v5-c-button.pf-m-primary {
+  background: var(--sub-accent) !important;
+  border-color: var(--sub-accent) !important;
+  color: #ffffff !important;
+}
+
+.pf-v5-c-button.pf-m-primary:hover,
+.pf-v5-c-button.pf-m-primary:focus {
+  background: var(--sub-accent-hover) !important;
+  border-color: var(--sub-accent-hover) !important;
+}
+
+/* Remove Keycloak masthead logo from admin UI */
+.pf-v5-c-page__header .pf-v5-c-brand,
+.pf-v5-c-page__header .pf-v5-c-brand img,
+.pf-v5-c-page__header .pf-v5-c-brand svg,
+.pf-v5-c-masthead__brand img,
+.pf-v5-c-masthead__brand svg {
+  display: none !important;
+}
+
+/* Collapse the empty brand slot once logo is removed */
+.pf-v5-c-page__header .pf-v5-c-masthead__brand,
+.pf-v5-c-masthead__brand {
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Force readable dark text/icons in top + side navigation across breakpoints */
+.pf-v5-c-page__header,
+.pf-v5-c-page__header *,
+.pf-v5-c-masthead,
+.pf-v5-c-masthead *,
+.pf-v5-c-page__sidebar,
+.pf-v5-c-page__sidebar *,
+.pf-v5-c-nav,
+.pf-v5-c-nav * {
+  color: var(--sub-text) !important;
+}
+
+.pf-v5-c-page__header svg,
+.pf-v5-c-page__header i,
+.pf-v5-c-page__header .pf-v5-c-icon,
+.pf-v5-c-masthead svg,
+.pf-v5-c-masthead i,
+.pf-v5-c-masthead .pf-v5-c-icon,
+.pf-v5-c-page__sidebar svg,
+.pf-v5-c-page__sidebar i,
+.pf-v5-c-page__sidebar .pf-v5-c-icon {
+  fill: var(--sub-text) !important;
+  color: var(--sub-text) !important;
+}
+
+.pf-v5-c-dropdown__toggle,
+.pf-v5-c-dropdown__toggle-text,
+.pf-v5-c-dropdown__toggle-icon,
+.pf-v5-c-menu-toggle,
+.pf-v5-c-menu-toggle__text,
+.pf-v5-c-button.pf-m-plain,
+.pf-v5-c-page__header-tools a,
+.pf-v5-c-page__header-tools button {
+  color: var(--sub-text) !important;
+}
+
+.pf-v5-c-nav__section-title,
+.pf-v5-c-nav__link-text {
+  color: var(--sub-text) !important;
+}
+
+/* Keep selected nav readable with dark text as requested */
+.pf-v5-c-nav__item.pf-m-current > .pf-v5-c-nav__link,
+.pf-v5-c-nav__link.pf-m-current {
+  background: #e8e2d8 !important;
+  color: var(--sub-text) !important;
+}

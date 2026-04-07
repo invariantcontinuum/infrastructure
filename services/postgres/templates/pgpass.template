@@ -1,0 +1,17 @@
+# =============================================================================
+# PGPASS FILE - PostgreSQL Password File
+# =============================================================================
+# Format: hostname:port:database:username:password
+# Permissions should be 0600
+# =============================================================================
+
+# Local PostgreSQL (main instance)
+${PG_SERVER_HOST}:${PG_SERVER_PORT}:*:${PG_USERNAME}:${PG_PASSWORD}
+
+# Keycloak database
+${PG_SERVER_HOST}:${PG_SERVER_PORT}:${KEYCLOAK_DB_NAME}:${KEYCLOAK_DB_USER}:${KEYCLOAK_DB_PASSWORD}
+
+${#EXTRA_SERVERS}
+# ${NAME}
+${HOST}:${PORT}:${DATABASE}:${USERNAME}:${PASSWORD}
+${/EXTRA_SERVERS}

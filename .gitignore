@@ -1,0 +1,40 @@
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Data volumes (should not be committed)
+services/postgres/volumes/data/*
+services/postgres/volumes/pgadmin/*
+services/redis/volumes/data/*
+services/elasticsearch/volumes/data/*
+services/elasticsearch/volumes/kibana/*
+services/neo4j/volumes/data/*
+services/neo4j/volumes/logs/*
+services/nats/volumes/data/*
+services/qdrant/volumes/data/*
+services/nginx-proxy-manager/data/*
+services/nginx-proxy-manager/letsencrypt/*
+
+# Keep .gitkeep files
+!**/.gitkeep
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temp
+tmp/
+temp/
+*.tmp

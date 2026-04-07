@@ -1,0 +1,193 @@
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300;1,9..144,400;1,9..144,600&family=Instrument+Sans:wght@400;500;600&display=swap");
+
+:root {
+  color-scheme: light;
+  --sub-bg: #e8e2d9;
+  --sub-surface: #fefcf9;
+  --sub-surface-muted: #f7f2ea;
+  --sub-border: #d0c7ba;
+  --sub-border-strong: #c4b9ab;
+  --sub-text: #1c1813;
+  --sub-text-sub: #7d7168;
+  --sub-accent: #1a4a7a;
+  --sub-accent-hover: #153d65;
+
+  --pf-v5-global--FontFamily--sans-serif: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --pf-v5-global--Color--100: var(--sub-text);
+  --pf-v5-global--Color--200: var(--sub-text-sub);
+  --pf-v5-global--BackgroundColor--100: var(--sub-bg);
+  --pf-v5-global--BackgroundColor--200: var(--sub-surface);
+  --pf-v5-global--BackgroundColor--light-100: var(--sub-surface);
+  --pf-v5-global--BorderColor--100: var(--sub-border);
+  --pf-v5-global--BorderColor--200: var(--sub-border-strong);
+  --pf-v5-global--primary-color--100: var(--sub-accent);
+  --pf-v5-global--active-color--100: var(--sub-accent);
+  --pf-v5-global--link--Color: var(--sub-accent);
+  --pf-v5-global--link--Color--hover: var(--sub-accent-hover);
+  --pf-v5-c-masthead--Color: var(--sub-text);
+  --pf-v5-c-page__sidebar--Color: var(--sub-text);
+  --pf-v5-c-nav__link--Color: var(--sub-text);
+  --pf-v5-c-dropdown__toggle--Color: var(--sub-text);
+  --pf-v5-c-dropdown__toggle-icon--Color: var(--sub-text);
+}
+
+html,
+body {
+  color-scheme: light;
+  background-color: var(--sub-bg);
+}
+
+body {
+  background-image:
+    radial-gradient(ellipse 90% 70% at 50% -10%, rgba(255, 252, 248, 0.75) 0%, transparent 65%),
+    radial-gradient(ellipse 55% 65% at -5% 100%, rgba(210, 198, 182, 0.55) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 60% at 108% 100%, rgba(218, 208, 195, 0.45) 0%, transparent 60%);
+}
+
+.keycloak__loading-container {
+  background-color: var(--sub-bg) !important;
+  color: var(--sub-text) !important;
+}
+
+#loading-text {
+  font-family: "Fraunces", Georgia, serif;
+  font-style: italic;
+  font-weight: 400;
+}
+
+.pf-v5-c-masthead {
+  background: var(--sub-surface) !important;
+  border-bottom: 1px solid var(--sub-border);
+}
+
+.pf-v5-c-masthead__content {
+  background: var(--sub-surface) !important;
+}
+
+.pf-v5-c-page__header,
+.pf-v5-c-masthead__main,
+.pf-v5-c-toolbar,
+.pf-v5-c-toolbar__content,
+.pf-v5-c-toolbar__group,
+.pf-v5-c-toolbar__item {
+  background: var(--sub-surface) !important;
+}
+
+.pf-v5-c-masthead,
+.pf-v5-c-masthead * {
+  color: var(--sub-text) !important;
+}
+
+.pf-v5-c-menu-toggle,
+.pf-v5-c-dropdown__toggle,
+.pf-v5-c-options-menu__toggle {
+  background: var(--sub-surface-muted) !important;
+  color: var(--sub-text) !important;
+  border-color: var(--sub-border) !important;
+}
+
+.pf-v5-c-menu-toggle:hover,
+.pf-v5-c-menu-toggle:focus,
+.pf-v5-c-dropdown__toggle:hover,
+.pf-v5-c-dropdown__toggle:focus,
+.pf-v5-c-options-menu__toggle:hover,
+.pf-v5-c-options-menu__toggle:focus {
+  background: #efe6da !important;
+  color: var(--sub-text) !important;
+  border-color: var(--sub-border-strong) !important;
+}
+
+.pf-v5-c-menu,
+.pf-v5-c-menu__content,
+.pf-v5-c-dropdown__menu,
+.pf-v5-c-options-menu__menu {
+  background: var(--sub-surface) !important;
+  color: var(--sub-text) !important;
+  border-color: var(--sub-border) !important;
+}
+
+.pf-v5-c-masthead__brand {
+  display: inline-flex;
+  align-items: center;
+}
+
+.pf-v5-c-masthead__brand {
+  content: "Substrate";
+  font-family: "Fraunces", Georgia, serif;
+  font-style: italic;
+  font-size: 1.75rem;
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  color: var(--sub-text);
+  line-height: 1;
+}
+
+.pf-v5-c-page__sidebar,
+.pf-v5-c-nav {
+  background: var(--sub-surface-muted) !important;
+  border-right: 1px solid var(--sub-border);
+}
+
+.pf-v5-c-page__sidebar,
+.pf-v5-c-page__sidebar *,
+.pf-v5-c-nav,
+.pf-v5-c-nav * {
+  color: var(--sub-text) !important;
+}
+
+.pf-v5-c-nav__link {
+  color: #3d342c !important;
+}
+
+.pf-v5-c-nav__link:hover {
+  background: #efe6da !important;
+  color: var(--sub-text) !important;
+}
+
+.pf-v5-c-nav__item.pf-m-current > .pf-v5-c-nav__link,
+.pf-v5-c-nav__link.pf-m-current {
+  background: var(--sub-accent) !important;
+  color: #ffffff !important;
+}
+
+.pf-v5-c-page__main,
+.pf-v5-c-page__main-section,
+.pf-v5-c-page__main-breadcrumb {
+  background: transparent !important;
+}
+
+.pf-v5-c-card,
+.pf-v5-c-page__main-section.pf-m-light {
+  background: rgba(254, 252, 249, 0.9) !important;
+  border: 1px solid var(--sub-border) !important;
+}
+
+.pf-v5-c-form-control,
+.pf-v5-c-select__toggle,
+.pf-v5-c-menu__content,
+.pf-v5-c-text-input-group {
+  border-color: var(--sub-border-strong) !important;
+}
+
+.pf-v5-c-form-control:focus,
+.pf-v5-c-select__toggle:focus,
+.pf-v5-c-text-input-group:focus-within {
+  border-color: var(--sub-accent) !important;
+  box-shadow: 0 0 0 3px rgba(26, 74, 122, 0.12) !important;
+}
+
+.pf-v5-c-button.pf-m-primary {
+  background: var(--sub-accent) !important;
+  border-color: var(--sub-accent) !important;
+  color: #ffffff !important;
+}
+
+.pf-v5-c-button.pf-m-primary:hover,
+.pf-v5-c-button.pf-m-primary:focus {
+  background: var(--sub-accent-hover) !important;
+  border-color: var(--sub-accent-hover) !important;
+}
+
+.pf-v5-c-button.pf-m-link {
+  color: var(--sub-accent) !important;
+}

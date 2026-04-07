@@ -1,0 +1,459 @@
+# =============================================================================
+# INFRASTRUCTURE - CONSOLIDATED DOCKER COMPOSE
+# =============================================================================
+# This file contains all infrastructure services for the invariantcontinuum org.
+# Use profiles to start specific services or groups:
+#   docker compose --profile database up -d
+#   docker compose --profile cache up -d
+#   docker compose up -d  # starts all services
+# =============================================================================
+
+name: infrastructure
+
+# =============================================================================
+# POSTGRESQL - RELATIONAL DATABASE (Foundation Service)
+# =============================================================================
+services:
+  postgres:
+    image: postgres:${POSTGRES_VERSION:-16-alpine}
+    container_name: postgres
+    hostname: postgres
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-CHANGE_ME_POSTGRES}
+      - POSTGRES_DB=${POSTGRES_DB:-postgres}
+      - NPM_DB_NAME=${NPM_DB_NAME:-npm}
+      - NPM_DB_USER=${NPM_DB_USER:-npm}
+      - NPM_DB_PASSWORD=${NPM_DB_PASSWORD:-CHANGE_ME_NPM_DB}
+      - N8N_DB_NAME=${N8N_DB_NAME:-n8n}
+      - N8N_DB_USER=${N8N_DB_USER:-n8n}
+      - N8N_DB_PASSWORD=${N8N_DB_PASSWORD:-CHANGE_ME_N8N_DB}
+      - KEYCLOAK_DB_NAME=${KEYCLOAK_DB_NAME:-keycloak}
+      - KEYCLOAK_DB_USER=${KEYCLOAK_DB_USER:-keycloak}
+      - KEYCLOAK_DB_PASSWORD=${KEYCLOAK_DB_PASSWORD:-CHANGE_ME_KEYCLOAK_DB}
+      - EXTRA_DATABASES=${EXTRA_DATABASES:-}
+    volumes:
+      - ./services/postgres/volumes/data:/var/lib/postgresql/data
+      - ./services/postgres/init/entrypoint.sh:/docker-entrypoint-initdb.d/01-entrypoint.sh:ro
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    networks:
+      - traefik-public
+      - postgres-internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    profiles:
+      - postgres
+      - database
+      - foundation
+      - all
+
+  pgadmin:
+    image: dpage/pgadmin4:${PGADMIN_VERSION:-latest}
+    container_name: pgadmin
+    hostname: pgadmin
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_DEFAULT_EMAIL:-admin@localhost.com}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_DEFAULT_PASSWORD:-CHANGE_ME_PGADMIN}
+      - PGADMIN_LISTEN_PORT=5050
+      - PGADMIN_CONFIG_SERVER_MODE=False
+      - PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED=False
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-CHANGE_ME_POSTGRES}
+    volumes:
+      - ./services/postgres/volumes/pgadmin:/var/lib/pgadmin
+      - ./services/postgres/init/entrypoint-pgadmin.sh:/docker-entrypoint-initdb.d/entrypoint-pgadmin.sh:ro
+    ports:
+      - "${PGADMIN_PORT:-5050}:5050"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - traefik-public
+      - postgres-internal
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:5050/misc/ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    profiles:
+      - postgres
+      - database
+      - foundation
+      - all
+
+# =============================================================================
+# REDIS - IN-MEMORY DATA STORE
+# =============================================================================
+  redis:
+    image: redis:${REDIS_VERSION:-7-alpine}
+    container_name: redis
+    hostname: redis
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ./services/redis/volumes/data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD:-CHANGE_ME_REDIS}
+      --appendonly yes
+      --maxmemory ${REDIS_MAX_MEMORY:-256mb}
+      --maxmemory-policy allkeys-lru
+      --save 900 1
+      --save 300 10
+      --loglevel notice
+    networks:
+      - redis-internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-CHANGE_ME_REDIS}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    profiles:
+      - redis
+      - cache
+      - all
+
+  redis-commander:
+    image: rediscommander/redis-commander:${REDIS_COMMANDER_VERSION:-latest}
+    container_name: redis-commander
+    hostname: redis-commander
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - REDIS_HOSTS=local:redis:6379:0:${REDIS_PASSWORD:-CHANGE_ME_REDIS}
+      - HTTP_USER=admin
+      - HTTP_PASSWORD=${REDIS_PASSWORD:-CHANGE_ME_REDIS}
+    ports:
+      - "${REDIS_COMMANDER_PORT:-8081}:8081"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - redis-internal
+    profiles:
+      - redis
+      - cache
+      - all
+
+# =============================================================================
+# ELASTICSEARCH & KIBANA - SEARCH & ANALYTICS
+# =============================================================================
+  elasticsearch:
+    image: elasticsearch:${ELASTICSEARCH_VERSION:-8.13.0}
+    container_name: elasticsearch
+    hostname: elasticsearch
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - discovery.type=${ELASTICSEARCH_DISCOVERY_TYPE:-single-node}
+      - xpack.security.enabled=${ELASTICSEARCH_SECURITY_ENABLED:-false}
+      - xpack.security.enrollment.enabled=false
+      - ELASTIC_PASSWORD=${ELASTICSEARCH_PASSWORD:-CHANGE_ME_ELASTIC}
+      - ES_JAVA_OPTS=-Xms${ELASTICSEARCH_HEAP_SIZE:-1g} -Xmx${ELASTICSEARCH_HEAP_SIZE:-1g}
+      - bootstrap.memory_lock=true
+      - cluster.name=elasticsearch-cluster
+      - node.name=elasticsearch-node
+      - http.host=0.0.0.0
+      - transport.host=127.0.0.1
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - ./services/elasticsearch/volumes/data:/usr/share/elasticsearch/data
+    ports:
+      - "${ELASTICSEARCH_PORT:-9200}:9200"
+    networks:
+      - elasticsearch-internal
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -o /dev/null -w '%{http_code}' http://localhost:9200/_cluster/health | grep -qE '^(200)$' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    profiles:
+      - elasticsearch
+      - search
+      - all
+
+  kibana:
+    image: kibana:${KIBANA_VERSION:-8.13.0}
+    container_name: kibana
+    hostname: kibana
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - ELASTICSEARCH_HOSTS=${KIBANA_ELASTICSEARCH_HOSTS:-http://elasticsearch:9200}
+      - ELASTICSEARCH_USERNAME=${ELASTICSEARCH_USERNAME:-}
+      - ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD:-CHANGE_ME_ELASTIC}
+      - xpack.security.enabled=${ELASTICSEARCH_SECURITY_ENABLED:-false}
+      - server.host=0.0.0.0
+      - server.port=5601
+      - server.name=kibana
+      - monitoring.ui.container.elasticsearch.enabled=true
+    volumes:
+      - ./services/elasticsearch/volumes/kibana:/usr/share/kibana/data
+    ports:
+      - "${KIBANA_PORT:-5601}:5601"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - elasticsearch-internal
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -o /dev/null -w '%{http_code}' http://localhost:5601/api/status | grep -q '^200$' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    profiles:
+      - elasticsearch
+      - search
+      - all
+
+# =============================================================================
+# KEYCLOAK - IDENTITY & ACCESS MANAGEMENT
+# =============================================================================
+  keycloak:
+    image: quay.io/keycloak/keycloak:${KEYCLOAK_VERSION:-latest}
+    container_name: keycloak
+    hostname: keycloak
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN:-admin}
+      - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD:-CHANGE_ME_KEYCLOAK}
+      - KC_DB=postgres
+      - KC_DB_URL=jdbc:postgresql://postgres:5432/${KEYCLOAK_DB_NAME:-keycloak}
+      - KC_DB_USERNAME=${KEYCLOAK_DB_USER:-keycloak}
+      - KC_DB_PASSWORD=${KEYCLOAK_DB_PASSWORD:-CHANGE_ME_KEYCLOAK_DB}
+      - KC_DB_SCHEMA=public
+      - KC_HTTP_ENABLED=true
+      - KC_HTTP_PORT=8080
+      - KC_HOSTNAME_STRICT=false
+      - KC_HOSTNAME_STRICT_HTTPS=false
+      - KC_FEATURES=${KEYCLOAK_FEATURES:-token-exchange,admin-fine-grained-authz}
+      - KC_SPI_THEME_DEFAULT=${KEYCLOAK_DEFAULT_THEME:-keycloak}
+      - KC_LOG_LEVEL=${KEYCLOAK_LOG_LEVEL:-INFO}
+      - KC_PROXY_HEADERS=forwarded
+      - KC_PROXY=edge
+      - KC_HEALTH_ENABLED=true
+    volumes:
+      - ./services/keycloak/themes:/opt/keycloak/themes:ro
+    ports:
+      - "${KEYCLOAK_PORT:-8080}:8080"
+    command: start-dev
+    networks:
+      - keycloak-internal
+      - postgres-internal
+    healthcheck:
+      test: ["CMD-SHELL", "(timeout 5 sh -c 'cat < /dev/null > /dev/tcp/localhost/8080') 2>/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    profiles:
+      - keycloak
+      - auth
+      - all
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+# =============================================================================
+# NATS - MESSAGE QUEUE & STREAMING PLATFORM
+# =============================================================================
+  nats:
+    image: nats:${NATS_VERSION:-2-alpine}
+    container_name: nats
+    hostname: nats
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ./services/nats/volumes/data:/data/jetstream
+    ports:
+      - "${NATS_CLIENT_PORT:-4222}:4222"
+      - "${NATS_HTTP_PORT:-8222}:8222"
+      - "${NATS_CLUSTER_PORT:-6222}:6222"
+    command: >
+      -js
+      -sd /data/jetstream
+      -m ${NATS_HTTP_PORT:-8222}
+    networks:
+      - nats-internal
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:${NATS_HTTP_PORT:-8222}/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    profiles:
+      - nats
+      - messaging
+      - all
+
+# =============================================================================
+# NEO4J - GRAPH DATABASE
+# =============================================================================
+  neo4j:
+    image: neo4j:${NEO4J_VERSION:-5-community}
+    container_name: neo4j
+    hostname: neo4j
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - NEO4J_AUTH=${NEO4J_AUTH:-neo4j/CHANGE_ME_NEO4J}
+      - NEO4J_ACCEPT_LICENSE_AGREEMENT=yes
+      - NEO4J_apoc_export_file_enabled=${NEO4J_apoc_export_file_enabled:-true}
+      - NEO4J_apoc_import_file_enabled=${NEO4J_apoc_import_file_enabled:-true}
+      - NEO4J_apoc_import_file_use__neo4j__config=${NEO4J_apoc_import_file_use__neo4j__config:-true}
+      - NEO4J_PLUGINS=${NEO4J_PLUGINS:-["apoc"]}
+      - NEO4J_server_memory_heap_initial__size=512m
+      - NEO4J_server_memory_heap_max__size=1G
+      - NEO4J_dbms_logs_debug_level=${NEO4J_LOG_LEVEL:-INFO}
+    volumes:
+      - ./services/neo4j/volumes/data:/data
+      - ./services/neo4j/volumes/logs:/logs
+      - ./services/neo4j/volumes/plugins:/plugins
+      - ./services/neo4j/init/entrypoint.sh:/startup/custom-entrypoint.sh:ro
+    ports:
+      - "${NEO4J_HTTP_PORT:-7474}:7474"
+      - "${NEO4J_BOLT_PORT:-7687}:7687"
+    networks:
+      - neo4j-internal
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:7474 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    profiles:
+      - neo4j
+      - graph
+      - all
+
+# =============================================================================
+# QDRANT - VECTOR DATABASE
+# =============================================================================
+  qdrant:
+    image: qdrant/qdrant:${QDRANT_VERSION:-latest}
+    container_name: qdrant
+    hostname: qdrant
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - QDRANT__SERVICE__API_KEY=${QDRANT_API_KEY:-}
+      - QDRANT__SERVICE__ENABLE_CORS=true
+      - QDRANT__STORAGE__STORAGE_PATH=/qdrant/storage
+      - QDRANT__STORAGE__ON_DISK_PAYLOAD=true
+      - QDRANT__TELEMETRY_DISABLED=true
+    volumes:
+      - ./services/qdrant/volumes/data:/qdrant/storage
+    ports:
+      - "${QDRANT_PORT:-6333}:6333"
+      - "${QDRANT_GRPC_PORT:-6334}:6334"
+    networks:
+      - qdrant-internal
+    healthcheck:
+      test: ["CMD-SHELL", "(timeout 5 sh -c 'cat < /dev/null > /dev/tcp/localhost:6333') 2>/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    profiles:
+      - qdrant
+      - vector
+      - ai
+      - all
+
+# =============================================================================
+# NGINX PROXY MANAGER - REVERSE PROXY & SSL MANAGEMENT
+# =============================================================================
+  nginx-proxy-manager:
+    image: jc21/nginx-proxy-manager:${NPM_VERSION:-latest}
+    container_name: nginx-proxy-manager
+    hostname: nginx-proxy-manager
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "${NPM_HTTP_PORT:-80}:80"
+      - "${NPM_ADMIN_PORT:-81}:81"
+      - "${NPM_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./services/nginx-proxy-manager/data:/data
+      - ./services/nginx-proxy-manager/letsencrypt:/etc/letsencrypt
+    environment:
+      - DB_SQLITE_FILE=/data/database.sqlite
+    networks:
+      - nginx-proxy-manager-network
+      - traefik-public
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:81/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    profiles:
+      - nginx-proxy-manager
+      - proxy
+      - edge
+      - all
+
+# =============================================================================
+# NETWORKS
+# =============================================================================
+networks:
+  traefik-public:
+    external: true
+    name: ${TRAEFIK_NETWORK:-traefik-public}
+  postgres-internal:
+    name: postgres-internal
+    driver: bridge
+  redis-internal:
+    name: redis-internal
+    driver: bridge
+  elasticsearch-internal:
+    name: elasticsearch-internal
+    driver: bridge
+  keycloak-internal:
+    name: keycloak-internal
+    driver: bridge
+  nats-internal:
+    name: nats-internal
+    driver: bridge
+  neo4j-internal:
+    name: neo4j-internal
+    driver: bridge
+  qdrant-internal:
+    name: qdrant-internal
+    driver: bridge
+  nginx-proxy-manager-network:
+    name: nginx-proxy-manager-network
+    driver: bridge

@@ -1,0 +1,30 @@
+{
+  "Servers": {
+    "${SERVER_ID}": {
+      "Name": "${SERVER_NAME}",
+      "Group": "${SERVER_GROUP}",
+      "Host": "${SERVER_HOST}",
+      "Port": ${SERVER_PORT},
+      "MaintenanceDB": "${MAINTENANCE_DB}",
+      "Username": "${USERNAME}",
+      "SSLMode": "${SSL_MODE}",
+      "PassFile": "${PASS_FILE}",
+      "SSLCert": "${SSL_CERT}",
+      "SSLKey": "${SSL_KEY}",
+      "SSLRootCert": "${SSL_ROOT_CERT}",
+      "Comment": "${COMMENT}",
+      "BGColor": "${BG_COLOR}",
+      "FGColor": "${FG_COLOR}",
+      "Service": "${SERVICE}",
+      "UseSSHTunnel": ${USE_SSH_TUNNEL},
+      "TunnelHost": "${TUNNEL_HOST}",
+      "TunnelPort": "${TUNNEL_PORT}",
+      "TunnelUsername": "${TUNNEL_USERNAME}",
+      "TunnelAuthentication": ${TUNNEL_AUTH},
+      "KerberosAuthentication": ${KERBEROS_AUTH},
+      "ConnectionTimeout": ${CONNECTION_TIMEOUT},
+      "Shared": ${SHARED},
+      "Tags": ${TAGS}
+    }
+  }
+}
