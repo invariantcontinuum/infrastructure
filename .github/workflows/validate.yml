@@ -13,7 +13,7 @@ jobs:
     name: Lint Docker Compose
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Validate compose files
         run: bash .github/scripts/validate-compose.sh
@@ -22,7 +22,7 @@ jobs:
     name: Lint Scripts
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: ShellCheck
         run: |
@@ -42,7 +42,7 @@ jobs:
     name: Docker Compose Validation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Copy environment
         run: cp .env.example .env
@@ -64,7 +64,7 @@ jobs:
     name: Runtime Test - Foundation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Setup environment
         run: |
@@ -109,7 +109,7 @@ jobs:
     name: Runtime Test - Cache
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Setup environment
         run: |
@@ -151,7 +151,7 @@ jobs:
     name: Trivy Security Scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Run Trivy
         uses: aquasecurity/trivy-action@master
@@ -173,7 +173,7 @@ jobs:
     name: Check ENV Sync
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Check environment variables
         run: bash .github/scripts/check-env-sync.sh

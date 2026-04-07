@@ -49,7 +49,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.inputs.deployment_target == 'vm'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       
@@ -101,7 +101,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.inputs.deployment_target == 'cloudrun'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       
@@ -167,7 +167,7 @@ jobs:
     needs: [deploy-vm, deploy-cloudrun]
     if: always() && (needs.deploy-vm.result == 'success' || needs.deploy-cloudrun.result == 'success')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
